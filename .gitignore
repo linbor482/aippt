@@ -1,0 +1,44 @@
+# Secrets — never commit
+.env
+.env.*
+config.json
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local Vercel state (vercel.json stays committed)
+.vercel/
+
+# Generated / archived artifacts
+backup-*/
+review/
+output/
+*.pptx
+
+# Logs
+*.log
+
+# Internal Claude Code context & dev tooling — kept out of the public repo
+PROJECT_MEMORY.md
+PROJECT_MEMORY_HISTORY.md
+AGENTS.md
+CLAUDE.md
+_shots.py
+_snapshot_css.py
+shot_redesign.py
+verify_modal.py
+check_browser.py
+check_fallback_browser.py
+check_progress_browser.py
+make_review.py

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "headers": [
+    {"source": "/static/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=3600"}]},
+    {"source": "/api/(.*)", "headers": [{"key": "Cache-Control", "value": "no-store"}]},
+    {"source": "/", "headers": [{"key": "Cache-Control", "value": "no-cache"}]}
+  ],
+  "functions": {
+    "app.py": {
+      "maxDuration": 300
+    }
+  }
+}

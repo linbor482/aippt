@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FORM / 演示文稿工作室</title>
+    <link rel="stylesheet" href="/static/tokens.css?v=20261019">
+    <link rel="stylesheet" href="/static/base.css?v=20261020">
+    <link rel="stylesheet" href="/static/studio.css?v=20261019">
+    <link rel="stylesheet" href="/static/studio-redesign.css?v=20261020">
+</head>
+<body>
+    <header class="topbar">
+        <div class="brand-mark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        </div>
+        <div>
+            <div class="title">FORM / AI PPT</div>
+            <div class="subtitle">Presentation studio</div>
+        </div>
+        <div class="topbar-meta"><span class="status-dot"></span> 可编辑 PPTX <span class="format-pill">16:9</span></div>
+    </header>
+
+    <div class="workspace">
+        <aside class="thumbrail">
+            <div class="thumbrail-head">幻灯片</div>
+            <div class="thumb-list" id="thumbList"></div>
+        </aside>
+
+        <main class="preview-area">
+            <div class="preview-header">
+                <div>
+                    <h1>让想法，自成一格。</h1>
+                    <div class="desc">人工智能的发展与应用</div>
+                </div>
+                <button class="edit-outline" id="editWorkspace">编辑大纲</button>
+            </div>
+            <section id="generationProgress" class="generation-progress" hidden aria-label="PPT 制作进度">
+                <div class="progress-heading"><strong id="generationMessage" role="status">准备制作</strong><button class="btn" id="cancelGeneration">停止生成</button><button class="btn primary" id="workspaceDownload" hidden>下载 PPTX</button></div>
+                <progress id="deckProgress" max="100" value="0" aria-label="已完成页面"></progress>
+                <p>页面将在完成排版和配图后依次显示，可点击左侧缩略图查看。</p>
+            </section>
+            <div class="canvas-label"><span id="activeStyleLabel">竞赛提案</span></div><div class="stage" id="stage"></div><div class="stage-status"><span id="pageStatus">01 / 04</span><div><button id="prevSlide" title="上一页" aria-label="上一页">&#8592;</button><button id="nextSlide" title="下一页" aria-label="下一页">&#8594;</button><button id="presentTool" title="全屏" aria-label="全屏">&#9974;</button></div><span id="layoutStatus">设计预览</span></div>
+        </main>
+
+        <aside class="design-panel" aria-label="风格与文稿工具">
+            <div class="panel-heading"><span class="eyebrow">设计库</span><h2>选择你的表达方式</h2><p>不同构图，为不同场合而设计。</p></div>
+            <div class="template-tabs" id="templateTabs" role="group" aria-label="演示文稿风格">
+                <button data-t="default" aria-pressed="false"><span class="style-preview" id="style-default"></span><span class="style-title">商务报告 <span class="style-check">✓</span></span><span class="style-desc">规整网格 · 信息卡片 · 理性蓝</span><span class="style-use">工作汇报 / 商业分析</span></button>
+                <button data-t="modern" aria-pressed="false"><span class="style-preview" id="style-modern"></span><span class="style-title">现代简约 <span class="style-check">✓</span></span><span class="style-desc">大幅留白 · 轻字重 · 细线秩序</span><span class="style-use">学术分享 / 产品介绍</span></button>
+                <button data-t="creative" aria-pressed="false"><span class="style-preview" id="style-creative"></span><span class="style-title">创意设计 <span class="style-check">✓</span></span><span class="style-desc">几何拼贴 · 错位卡片 · 海报标题</span><span class="style-use">创意策划 / 品牌展示</span></button>
+                <button data-t="luxury" class="active" aria-pressed="true"><span class="style-preview" id="style-luxury"></span><span class="style-title">竞赛提案 <span class="style-check">✓</span></span><span class="style-desc">深色章节 · 侧栏标题 · 论证模块</span><span class="style-use">创新创业 / 项目路演</span></button>
+            </div>
+            <p class="design-note" id="styleNote">用章节侧栏建立叙事，用独立模块展开项目论点。</p>
+            <div class="panel-actions">
+                <button class="create-button" id="generateTool">创建演示文稿</button>
+                <div class="secondary-actions"><button id="importTool">导入 JSON</button><button id="exportTool">导出 JSON</button><button id="sampleTool">重置示例</button></div>
+            </div>
+        </aside>
+    </div>
+
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+
+    <div class="modal-overlay" id="modal" role="dialog" aria-modal="true" aria-label="创建演示文稿">
+        <div class="modal-card">
+            <!-- 配置视图 -->
+            <div id="configView">
+                <div class="modal-head">
+                    <h3>生成 PPT</h3>
+                    <button class="close" id="closeModal" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                </div>
+                <div class="step-hint" aria-label="生成流程"><span class="step current">填写需求</span><span class="step-arrow">→</span><span class="step">确认大纲</span><span class="step-arrow">→</span><span class="step">生成 PPT</span></div>
+
+                <div class="field">
+                    <label for="topic"><span>演示需求</span><span class="tip"><span class="char-count" id="topicCount">0 / 200</span></span></label>
+                    <textarea id="topic" rows="6" maxlength="200" aria-describedby="topicHelp" placeholder="例如：向非技术管理者介绍 AI 的应用，帮助团队选择落地场景，并说明风险与实施建议。"></textarea>
+                    <p id="topicHelp" class="prompt-help">建议说明主题、受众、目标和内容要求。<button type="button" class="help-toggle" id="topicHelpToggle" aria-label="查看优先级说明" aria-expanded="false">?</button><span class="help-tip" id="topicHelpTip" hidden>需求中明确指定的页数、语言将优先于下方设置；关闭 AI 生成文案时，将仅生成占位大纲。</span></p>
+                </div>
+
+                <div class="field">
+                    <label>目标页数（页） <span class="tip">1–30 · 将根据内容适当调整</span></label>
+                    <input type="number" id="pages" min="1" max="30" value="8" aria-label="目标页数">
+                    <input type="range" id="pagesRange" min="1" max="30" value="8" aria-label="目标页数滑杆">
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label>模板风格</label>
+                        <select id="template">
+                            <option value="default">商务报告</option>
+                            <option value="modern">现代简约</option>
+                            <option value="creative">创意设计</option>
+                            <option value="luxury" selected>竞赛提案</option>
+                        </select>
+                        <p class="field-desc" id="templateDesc">用章节侧栏建立叙事，用独立模块展开项目论点。</p>
+                    </div>
+                    <div class="field">
+                        <label>语言</label>
+                        <select id="language">
+                            <option value="中文" selected>中文</option>
+                            <option value="English">English</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <div class="switch-row">
+                        <div class="sw-text">
+                            AI 生成文案
+                            <small>关闭后仅生成占位大纲</small>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="useAi" checked><span class="track"></span></label>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>配图方式</label>
+                    <div class="radio-cards" id="imageModeCards">
+                        <label class="radio-card selected">
+                            <input type="radio" name="imageMode" value="none" checked>
+                            <div class="rc-body"><div class="rc-title">不配图</div><div class="rc-desc">仅使用文字与版式</div></div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="imageMode" value="ai">
+                            <div class="rc-body"><div class="rc-title">AI 配图</div><div class="rc-desc">根据页面内容生成图片</div></div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="imageMode" value="blank">
+                            <div class="rc-body"><div class="rc-title">预留图片位</div><div class="rc-desc">保留图片区域，稍后自行添加</div></div>
+                        </label>
+                        <label class="radio-card">
+                            <input type="radio" name="imageMode" value="real">
+                            <div class="rc-body"><div class="rc-title">网络配图</div><div class="rc-desc">搜索网络图片，使用前需核实授权</div></div>
+                        </label>
+                    </div>
+                    <div class="warn-note" id="realWarn">此方法会联网搜索并下载真实图片，耗时较长；失败时可选择预留图片位、AI 配图或不配图继续生成。</div>
+                    <div class="field" id="visionField" style="display:none;">
+                        <div class="switch-row">
+                            <div class="sw-text">
+                                启用图片视觉校验
+                                <small>检查候选图片与页面内容的关联</small>
+                            </div>
+                            <label class="switch"><input type="checkbox" id="useVision"><span class="track"></span></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-foot">
+                    <button type="button" class="btn primary block" id="doGenerate">生成大纲</button>
+                    <button type="button" class="btn block" id="openSettings" style="margin-top:8px;">API 密钥设置（可选）</button>
+                </div>
+            </div>
+
+            <!-- 密钥设置视图（可选） -->
+            <div id="settingsView" style="display:none;">
+                <div class="modal-head">
+                    <h3>API 密钥设置</h3>
+                    <button class="close" id="closeSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                </div>
+                <p class="desc" style="color:var(--muted);font-size:.85em;margin:-8px 0 18px;">可选。密钥保存在<b>你自己的浏览器本地</b>，每人各自、互不覆盖，生成时随请求发送，不写入服务器；留空则回退到服务端环境变量。</p>
+                <div class="field">
+                    <label>PPT 文案（DeepSeek）</label>
+                    <input type="password" id="pptKeyInput" placeholder="sk-…（AI 大纲与内容）" autocomplete="off">
+                    <div class="key-status" id="pptKeyStatus"></div>
+                </div>
+                <div class="field">
+                    <label>图片视觉校验（可选）</label>
+                    <input type="password" id="visionKeyInput" placeholder="可选，联网配图时挑最贴合的一张" autocomplete="off">
+                    <div class="key-status" id="visionKeyStatus"></div>
+                </div>
+                <div class="modal-foot">
+                    <div class="btn-row">
+                        <button type="button" class="btn" id="backFromSettings">返回</button>
+                        <button type="button" class="btn primary" id="saveSettings">保存</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 大纲编辑视图 -->
+            <div id="outlineView" style="display:none;">
+                <div class="modal-head">
+                    <h3>编辑大纲</h3>
+                    <button class="close" id="closeOutline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                </div>
+                <div class="step-hint" aria-label="生成流程"><span class="step">填写需求</span><span class="step-arrow">→</span><span class="step current">确认大纲</span><span class="step-arrow">→</span><span class="step">生成 PPT</span></div>
+                <p class="desc" style="color:var(--muted);font-size:.85em;margin:-8px 0 14px;">修改后将严格按照此大纲生成 PPT</p>
+
+                <div class="outline-meta">
+                    <div class="field">
+                        <label>主标题</label>
+                        <input type="text" id="outlineTitle">
+                    </div>
+                    <div class="field">
+                        <label>副标题</label>
+                        <input type="text" id="outlineSubtitle">
+                    </div>
+                </div>
+
+                <div class="slide-list" id="slideList"></div>
+                <button type="button" class="add-slide-btn" id="addSlide">＋ 添加一页</button>
+
+                <div class="modal-foot">
+                    <div class="btn-row">
+                        <button type="button" class="btn" id="backToConfig">返回</button>
+                        <button type="button" class="btn primary" id="confirmGenerate">确认生成 PPT</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 加载视图 -->
+            <div id="loadingView" style="display:none;" class="center-col">
+                <div class="spinner"></div>
+                <h3 id="loadingTitle">正在生成 PPT</h3>
+                <p id="loadingDesc">请稍候…</p>
+                <ol id="outlineProgressSteps" class="outline-progress-steps" aria-label="大纲生成阶段"><li>接收需求</li><li>撰写页面</li><li>校验大纲</li></ol>
+                <div id="outlineProgressList" class="outline-progress-list" aria-label="已生成的大纲页面"></div>
+                <button type="button" class="btn" id="cancelOutline">停止并返回</button>
+            </div>
+
+            <!-- 结果视图 -->
+            <div id="resultView" style="display:none;" class="center-col">
+                <div class="status-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></div>
+                <h3>生成成功</h3>
+                <p>你的 PPT 已就绪，点击下方按钮下载</p>
+                <div class="m-filename" id="mFilename"></div>
+                <div class="m-actions">
+                    <button type="button" class="btn primary block" id="downloadBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+                        下载 PPTX
+                    </button>
+                    <button type="button" class="btn block" id="exportOutlineBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m-5 5 5-5 5 5M5 21h14"/></svg>
+                        导出大纲 JSON
+                    </button>
+                    <button type="button" class="btn block" id="againBtn">再生成一个</button>
+                </div>
+            </div>
+
+            <div id="imageFallbackView" style="display:none;">
+                <div class="modal-head">
+                    <h3>联网搜图失败</h3>
+                    <button class="close" id="closeImageFallback" aria-label="关闭">×</button>
+                </div>
+                <p id="imageFallbackMessage" role="status" style="margin-bottom:12px;">未能取得可用图片，请选择一种方式继续。</p>
+                <p style="color:var(--muted);font-size:12px;margin-bottom:20px;">大纲已保留。当前文稿将统一改用选中的图片方式，重新生成。</p>
+                <div class="m-actions">
+                    <button type="button" class="btn block" data-image-fallback="blank">留空 · 保留图片位置，稍后自行添加</button>
+                    <button type="button" class="btn block" data-image-fallback="ai">AI 生图 · 改用 AI 生成配图</button>
+                    <button type="button" class="btn block" data-image-fallback="none">纯文字 · 移除图片位置，重新排版</button>
+                    <button type="button" class="btn block" id="imageFallbackBack">返回设置</button>
+                </div>
+            </div>
+
+            <!-- 错误视图 -->
+            <div id="errorView" style="display:none;" class="center-col">
+                <div class="status-icon err"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></div>
+                <h3>生成失败</h3>
+                <p id="mErrorText"></p>
+                <div class="m-actions">
+                    <button type="button" class="btn primary block" id="retryBtn">重试</button>
+                    <button type="button" class="btn block" id="backBtn">返回修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预览弹窗 -->
+    <div class="modal-overlay" id="previewModal" role="dialog" aria-modal="true" aria-label="PPT 预览">
+        <div class="modal-card wide">
+            <div class="modal-head">
+                <h3>PPT 预览</h3>
+                <button class="close" id="previewClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            </div>
+            <div class="preview-body">
+                <div class="ppt-layout">
+                    <aside class="thumbrail">
+                        <div class="thumbrail-head">幻灯片</div>
+                        <div class="thumb-list" id="previewThumbList"></div>
+                    </aside>
+                    <div class="stage" id="previewStage"></div>
+                </div>
+            </div>
+            <div class="m-filename" id="previewFilename" style="margin-top:14px;"></div>
+            <div class="m-actions" style="margin-top:6px;">
+                <button type="button" class="btn primary block" id="previewDownloadBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14"/></svg>
+                    下载 PPTX
+                </button>
+                <button type="button" class="btn block" id="previewOutlineBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m-5 5 5-5 5 5M5 21h14"/></svg>
+                    导出大纲 JSON
+                </button>
+                <button type="button" class="btn block" id="previewAgainBtn">再生成一个</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/static/studio.js?v=20261022" defer></script>
+</body>
+</html>

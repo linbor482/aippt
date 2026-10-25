@@ -1,0 +1,132 @@
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex; flex-direction: column; line-height: 1.6;
+        }
+
+        /* topbar, workspace, thumbrail 等主界面元素由 studio.css 完全控制，此处省略 */
+
+        /* ---------- 弹窗 ---------- */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-card {
+            max-height: 92vh; overflow: auto;
+        }
+        @keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .preview-body { max-height: 70vh; overflow: auto; padding: 2px; }
+        .ppt-layout { display: flex; gap: 16px; width: 100%; align-items: flex-start; }
+        .ppt-layout .thumbrail { position: static; width: 180px; max-height: 62vh; }
+        .ppt-layout .stage { flex: 1; }
+
+        .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+        .modal-head h3 { font-size: 1.2em; font-weight: 700; }
+        .modal-head .close {
+            border: none; width: 32px; height: 32px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+        .modal-head .close svg { width: 16px; height: 16px; }
+
+        .field { margin-bottom: 16px; }
+        .field label { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: .9em; margin-bottom: 7px; }
+        .field label .tip { font-weight: 400; color: var(--muted); font-size: .8em; }
+
+        input[type="text"], input[type="password"], select, textarea, input[type="number"] {
+            width: 100%; padding: 11px 13px;
+            font-size: .95em; font-family: inherit;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .switch-row { display: flex; align-items: center; justify-content: space-between; background: #fafbff; border: 1px solid var(--border); border-radius: 11px; padding: 11px 13px; }
+        .switch-row .sw-text { font-weight: 600; font-size: .88em; }
+        .switch-row .sw-text small { display: block; color: var(--muted); font-weight: 400; font-size: .78em; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .switch .track { position: absolute; cursor: pointer; inset: 0; background: #d1d5db; border-radius: 999px; transition: .2s; }
+        .switch .track::before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+        .switch input:checked + .track { background: #22c55e; }
+        .switch input:checked + .track::before { transform: translateX(20px); }
+
+        /* 图片生成方式单选卡片 */
+        .radio-cards { display: flex; flex-direction: column; gap: 8px; }
+        .radio-card {
+            display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+            border: 2px solid var(--border); border-radius: 11px; cursor: pointer; transition: all .16s;
+        }
+        .radio-card:hover { border-color: #c7cbe0; }
+        .radio-card input { accent-color: var(--accent); }
+        .radio-card .rc-body { flex: 1; }
+        .radio-card .rc-title { font-weight: 600; font-size: .88em; }
+        .radio-card .rc-desc { color: var(--muted); font-size: .76em; }
+        .radio-card.selected { border-color: var(--accent); background: #f5f6ff; }
+        .warn-note {
+            display: none; background: #fff7e6; border: 1px solid #ffd591; color: #8a5a00;
+            border-radius: 10px; padding: 10px 12px; font-size: .82em; margin-top: 8px;
+        }
+        .warn-note.show { display: block; }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px 16px; border-radius: 11px; font-size: .92em; font-weight: 600; cursor: pointer;
+            border: 2px solid var(--border); background: #fff; color: var(--text); transition: all .18s; font-family: inherit;
+        }
+        .btn svg { width: 17px; height: 17px; }
+        .btn:hover { border-color: var(--accent); color: var(--accent); }
+        .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border: none; box-shadow: 0 10px 22px rgba(99,102,241,.32); }
+        .btn.primary:hover { color: #fff; filter: brightness(1.05); }
+        .btn.block { width: 100%; }
+        .btn:disabled { opacity: .6; cursor: not-allowed; }
+        .btn-row { display: flex; gap: 10px; margin-top: 6px; }
+        .btn-row .btn { flex: 1; }
+
+        /* 大纲编辑器 */
+        .outline-meta { margin-bottom: 14px; }
+        .outline-meta .field { margin-bottom: 10px; }
+        .slide-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; max-height: 44vh; overflow: auto; }
+        .slide-card {
+            border: 1px solid var(--border); border-radius: 12px; padding: 12px;
+            background: #fafbff;
+        }
+        .slide-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .slide-card-head select { width: auto; padding: 5px 8px; font-size: .82em; border-radius: 8px; border: 1.5px solid var(--border); }
+        .slide-card-head .slide-idx { color: var(--muted); font-size: .8em; font-weight: 600; }
+        .slide-card-head .del-slide {
+            margin-left: auto; border: none; background: #fee2e2; color: #b91c1c; width: 26px; height: 26px;
+            border-radius: 8px; cursor: pointer; font-size: 16px; line-height: 1;
+        }
+        .slide-card input, .slide-card textarea { font-size: .88em; margin-top: 6px; }
+        .slide-card textarea { min-height: 88px; resize: vertical; }
+        .add-slide-btn {
+            width: 100%; padding: 10px; border: 2px dashed var(--border); background: transparent;
+            border-radius: 11px; color: var(--muted); font-weight: 600; cursor: pointer; font-size: .88em;
+            transition: all .16s; font-family: inherit; margin-bottom: 14px;
+        }
+        .add-slide-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* 加载/结果/错误 */
+        .spinner { width: 52px; height: 52px; margin: 20px auto 18px; border: 5px solid #eef0f8; border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .center-col { text-align: center; }
+        .center-col h3 { font-size: 1.2em; margin-bottom: 6px; }
+        .center-col p { color: var(--muted); font-size: .9em; margin-bottom: 18px; }
+        .status-icon { width: 68px; height: 68px; margin: 8px auto 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .status-icon.ok { background: linear-gradient(135deg, #22c55e, #20c997); }
+        .status-icon.err { background: linear-gradient(135deg, #ef4444, #f97316); }
+        .status-icon svg { width: 32px; height: 32px; color: #fff; }
+        .m-filename { display: inline-block; background: #f1f5f9; border-radius: 8px; padding: 4px 12px; font-family: ui-monospace, Consolas, monospace; font-size: .8em; color: #475569; margin-bottom: 16px; word-break: break-all; }
+        .m-actions { display: flex; flex-direction: column; gap: 9px; }
+        .export-row { text-align: left; margin-bottom: 12px; }
+
+        /* Toast */
+        .toast {
+            position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%) translateY(20px);
+            background: #1a1d23; color: #fff; padding: 11px 20px; border-radius: 11px; font-size: .88em;
+            opacity: 0; pointer-events: none; transition: all .3s; z-index: 200; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: 90vw;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    
