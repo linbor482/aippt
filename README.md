@@ -3,6 +3,9 @@
 一个基于 Flask 的演示文稿工作台：可编辑大纲 + 可编辑 PPTX 导出，帮你快速产出一份[能用]的 PPT 初稿。
 A Flask presentation workspace with an editable outline and editable PPTX export — a fast first draft, not a finished deck.
 
+> 声明：本作品在开发过程中使用了 AI 工具（Claude Code 等）辅助编写与审查代码。
+> Note: this project was developed with the help of AI tools (Claude Code, etc.) for writing and reviewing code.
+
 ## 定位 / Positioning
 
 这个项目帮你**快速产出一份能用的 PPT 初稿**，适合：
