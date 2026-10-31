@@ -24,6 +24,20 @@ A Flask presentation workspace with an editable outline and editable PPTX export
 
 This tool produces a **usable first draft**, good for class assignments, routine reports and small presentations. It is **not** a finished product for thesis defenses, competitions or public releases — data, citations, wording and layout there need your own review.
 
+## 截图 / Screenshots
+
+主工作区 / Main workspace：
+
+<p align="center"><img src="docs/screenshots/workspace.png" alt="main workspace" width="80%"></p>
+
+AI 流式生成大纲 / Outline generation：
+
+<p align="center"><img src="docs/screenshots/outline.png" alt="outline generation" width="80%"></p>
+
+生成完成的 PPT / Generated deck：
+
+<p align="center"><img src="docs/screenshots/result.png" alt="generated deck" width="80%"></p>
+
 ## 运行 / Run
 
 ```powershell
