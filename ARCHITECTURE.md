@@ -40,3 +40,39 @@ covered the four template styles at 390/768/1440/1920 pixels and the image-searc
 choices. The UI companion project passed its SSR accessibility tests, lint, and build.
 
 No live AI/image provider calls or Vercel deployment were used in verification.
+
+## Generation flow
+
+`POST /api/outline/stream` streams NDJSON stage updates and completed outline pages;
+`POST /api/generate/stream` streams completed scenes into the workspace, followed by the
+PPTX download. Both use request-scoped generators — no job database, instance-local
+polling or filesystem output. Cancelling closes the browser request; an in-flight provider
+call may continue until it returns or reaches its timeout.
+
+The topic brief is 1–200 characters (audience, goals, constraints). AI outline generation
+is on by default; a missing key or failed request is shown explicitly. Content slides accept
+`layout: auto | editorial | columns | timeline`. No factual metrics or charts are inferred
+from plain text. Font rendering can vary between browsers and PowerPoint (especially without
+Microsoft YaHei).
+
+## Built-in styles
+
+Four independent composition families in `style_layouts.py`:
+
+- business: navy side panel and structured cards
+- minimal: whitespace, thin rules, light headings
+- creative: circles, poster typography, pastel cards
+- proposal: dark chapter sidebars and argument modules
+
+Timelines switch between horizontal and vertical; long points continue onto extra pages.
+
+## Deployment (Vercel)
+
+`app.py` is the entry point; install `requirements.txt` and set the AI keys in Vercel's
+environment settings. The checked-in config requests a 300-second function duration (the
+plan must allow it and streaming). Streaming uses a 240-second work budget; the browser
+stops waiting at 285 seconds. Image downloads are capped at 8 MiB and resized to at most
+1280×960. PPTX output is capped at 3 MiB and total NDJSON at 4.2 MB (including preview
+images and base64 overhead). Split large decks or use pure layout if a limit is reached.
+API responses are not cached; static assets cache for one hour with versioned URLs.
+`.vercelignore` excludes secrets, backups, review files and local test scripts.
