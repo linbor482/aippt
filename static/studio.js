@@ -601,6 +601,44 @@
 
         renderSample();
     
+        // ---------- 首次访问：局域网账密设置（可选） ----------
+        async function initAuthSetup() {
+            let status;
+            try {
+                const res = await fetch('/api/auth/status', { headers: { 'Accept': 'application/json' } });
+                status = await res.json();
+            } catch { return; }
+            if (status && status.setup === 'unset') {
+                $('authModal').classList.add('open');
+                $('authSave').focus();
+            }
+        }
+        $('authSave').addEventListener('click', async () => {
+            const username = $('authUser').value.trim();
+            const password = $('authPass').value;
+            if (!username || password.length < 6) { toast('请填写用户名，且密码至少 6 位'); return; }
+            $('authSave').disabled = true;
+            try {
+                const res = await fetch('/api/auth/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+                const data = await res.json();
+                if (!res.ok || !data.success) throw new Error(data.error || '设置失败');
+                $('authModal').classList.remove('open');
+                toast('访问账密已启用');
+            } catch (err) {
+                toast(err.message);
+                $('authSave').disabled = false;
+            }
+        });
+        $('authSkip').addEventListener('click', async () => {
+            $('authSkip').disabled = true;
+            try {
+                await fetch('/api/auth/skip', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                toast('已跳过，本次无需账密');
+            } catch { /* 忽略网络错误，直接关闭 */ }
+            $('authModal').classList.remove('open');
+        });
+        initAuthSetup();
+
         $('prevSlide').addEventListener('click', () => { followGeneration=false; currentPage = Math.max(0,currentPage-1); renderSample(); });
         $('nextSlide').addEventListener('click', () => { followGeneration=false; currentPage = Math.min(Number($('nextSlide').dataset.count)-1,currentPage+1); renderSample(); });
         $('presentTool').addEventListener('click', async () => {

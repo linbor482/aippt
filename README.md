@@ -58,7 +58,9 @@ Open http://127.0.0.1:5000, set your API keys in the page. Works without keys to
 | `DEEPSEEK_API_KEY` | 大纲 / 文案生成（DeepSeek）· outline & copy generation |
 | `VISION_API_KEY` | 图片视觉校验，可选 · optional vision check |
 | `PROXY_URL` | 访问境外 API 的代理，可选 · optional proxy |
-| `ACCESS_USERNAME` / `ACCESS_PASSWORD` | 局域网共享口令，可选 · optional LAN password |
+| `ACCESS_USERNAME` / `ACCESS_PASSWORD` | 局域网共享口令覆盖，可选 · optional LAN password override |
+
+> 局域网共享：把 `HOST` 设为 `0.0.0.0` 启动，首次打开页面会引导设置访问账密（存本地 `auth.json`，密码只存哈希，本地 `127.0.0.1` 不鉴权）。忘记密码就删除 `auth.json` 重新设置。公网/Vercel 部署请用环境变量 `ACCESS_PASSWORD`。
 
 ## 许可证 / License
 

@@ -6,6 +6,7 @@ from flask import jsonify, render_template, request
 import outline_service
 import pptx_export
 import runtime_config
+import auth as lan_auth
 from generation_service import build_outline, validate_generation_options, validate_outline, validate_outline_request
 from presentation_design import build_scenes
 
@@ -25,6 +26,24 @@ def register_json_api(app):
     @app.get('/')
     def index():
         return render_template('index.html')
+
+    @app.get('/api/auth/status')
+    def api_auth_status():
+        return jsonify(success=True, setup=lan_auth.state(), lan=lan_auth.is_lan_mode())
+
+    @app.post('/api/auth/setup')
+    def api_auth_setup():
+        data = request.get_json(silent=True) or {}
+        try:
+            lan_auth.setup(data.get('username', ''), data.get('password', ''))
+        except ValueError as error:
+            return jsonify(success=False, error=str(error)), 400
+        return jsonify(success=True)
+
+    @app.post('/api/auth/skip')
+    def api_auth_skip():
+        lan_auth.skip()
+        return jsonify(success=True)
 
     @app.get('/api/config')
     def api_get_config():

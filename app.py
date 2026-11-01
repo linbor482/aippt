@@ -2,6 +2,7 @@
 import hmac
 import os
 
+import auth as lan_auth
 from flask import Flask, Response, request
 from flask_cors import CORS
 from settings import ALLOWED_ORIGINS, BASE_DIR
@@ -20,20 +21,25 @@ register_generation_api(app)
 
 @app.before_request
 def require_access_password():
-    """局域网共享时的访问口令：设置 ACCESS_PASSWORD 即启用 HTTP Basic Auth。
+    """局域网共享鉴权：仅当服务绑定非本机地址且已设置账密时才要求登录。
 
-    未设置则不鉴权（纯本地单机使用不受影响）。用户名默认 admin，可用
-    ACCESS_USERNAME 覆盖。口令走浏览器原生弹窗，验证通过后浏览器自动随请求带上。
+    环境变量 ACCESS_PASSWORD 仍作为显式覆盖（公网/Vercel 部署用）；否则走
+    auth.json 的首次网页设置账密（只存哈希）。本机 127.0.0.1 部署始终免登录。
     """
     password = os.environ.get('ACCESS_PASSWORD', '')
-    if not password:
-        return None
-    username = os.environ.get('ACCESS_USERNAME', 'admin')
-    auth = request.authorization
-    if auth and hmac.compare_digest(auth.username or '', username) \
-            and hmac.compare_digest(auth.password or '', password):
-        return None
-    return Response('需要访问口令', 401, {'WWW-Authenticate': 'Basic realm="AIPPT"'})
+    if password:
+        username = os.environ.get('ACCESS_USERNAME', 'admin')
+        creds = request.authorization
+        if creds and hmac.compare_digest(creds.username or '', username) \
+                and hmac.compare_digest(creds.password or '', password):
+            return None
+        return Response('需要访问口令', 401, {'WWW-Authenticate': 'Basic realm="AIPPT"'})
+    if lan_auth.is_lan_mode() and lan_auth.state() == 'set':
+        creds = request.authorization
+        if creds and lan_auth.verify(creds.username or '', creds.password or ''):
+            return None
+        return Response('需要访问账密', 401, {'WWW-Authenticate': 'Basic realm="AIPPT"'})
+    return None
 
 if __name__ == '__main__':
     # 本地运行：默认只监听本机、关闭 debug（Werkzeug 调试器可执行任意代码）。
@@ -42,11 +48,11 @@ if __name__ == '__main__':
     host = os.environ.get('HOST', '127.0.0.1')
     port = int(os.environ.get('PORT', '5000'))
     threads = int(os.environ.get('THREADS', '8'))
-    # 绑定非本机地址即意味着局域网/公网可访问，此时必须设置访问口令，否则任何能
-    # 连上该地址的人都能使用服务并读写本机密钥配置。
-    if host not in ('127.0.0.1', 'localhost', '::1') and not os.environ.get('ACCESS_PASSWORD', ''):
-        print(f'错误：HOST={host} 会暴露给网络，必须设置 ACCESS_PASSWORD 才能启动；'
-              f'或改回 HOST=127.0.0.1 仅供本机使用。')
-        raise SystemExit(1)
+    # 绑定非本机地址即意味着局域网/公网可访问；未设账密时给出提示（首次打开页面
+    # 会引导设置），而不再直接拒绝启动。
+    if lan_auth.is_lan_mode() and not os.environ.get('ACCESS_PASSWORD', '') \
+            and lan_auth.state() != 'set':
+        print(f'提示：HOST={host} 已暴露到局域网。首次打开页面时会引导设置访问账密；'
+              f'也可设置环境变量 ACCESS_PASSWORD 显式指定口令。')
     print(f' * Serving on http://{host}:{port} (threads={threads})')
     serve(app, host=host, port=port, threads=threads)

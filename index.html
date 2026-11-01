@@ -295,8 +295,32 @@
         </div>
     </div>
 
+    <!-- 首次访问：局域网账密设置（可选） -->
+    <div class="modal-overlay" id="authModal" role="dialog" aria-modal="true" aria-label="局域网访问设置">
+        <div class="modal-card">
+            <div class="modal-head">
+                <h3>设置局域网访问账密（可选）</h3>
+            </div>
+            <p class="desc" style="color:var(--muted);font-size:.85em;margin:-8px 0 18px;">如需部署到局域网共享，可在此设置访问账密；不需要则直接进入。之后可在本机删除 auth.json 重置。</p>
+            <div class="field">
+                <label>用户名</label>
+                <input type="text" id="authUser" value="admin" autocomplete="off">
+            </div>
+            <div class="field">
+                <label>密码（至少 6 位）</label>
+                <input type="password" id="authPass" autocomplete="off">
+            </div>
+            <div class="modal-foot">
+                <div class="btn-row">
+                    <button type="button" class="btn" id="authSkip">跳过 / 不需要</button>
+                    <button type="button" class="btn primary" id="authSave">设置账密</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast"></div>
 
-    <script src="/static/studio.js?v=20261022" defer></script>
+    <script src="/static/studio.js?v=20261101" defer></script>
 </body>
 </html>
