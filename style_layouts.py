@@ -118,6 +118,16 @@ def content(s, title, items, layout, with_image, t, ink, a, muted, page):
             _text(s, item, x+1.02, yy+.12, width-1.23, row-.28, 23, ink)
 
 
+def natural_layout(slide, items):
+    """内容页的布局（auto 自动推断，长要点强制 editorial），与 design_scene 共用。"""
+    layout = slide.get('layout', 'auto')
+    if layout == 'auto':
+        layout = 'timeline' if items and all(re.match(r'^\d{4}\b', item) for item in items) else ('columns' if len(items) <= 3 else 'editorial')
+    if layout not in ('columns', 'timeline', 'editorial') or any(_units(item) > 72 for item in items):
+        layout = 'editorial'
+    return layout
+
+
 def design_scene(data, slide, items, part, source_index, index, total, template, image_mode):
     paper, ink, accent, muted = STYLES[template]
     scene = dict(background=paper, elements=[], sourceIndex=source_index, layout='cover', style=template)
@@ -125,10 +135,6 @@ def design_scene(data, slide, items, part, source_index, index, total, template,
     if slide.get('type') in ('cover', 'final'):
         cover(scene, title, ' / '.join(items), slide.get('type')=='final', template, ink, accent, muted)
     else:
-        layout = slide.get('layout', 'auto')
-        if layout == 'auto':
-            layout = 'timeline' if items and all(re.match(r'^\d{4}\b', item) for item in items) else ('columns' if len(items)<=3 else 'editorial')
-        if layout not in ('columns', 'timeline', 'editorial') or any(_units(item)>72 for item in items):
-            layout = 'editorial'
-        content(scene, title, items, layout, image_mode in ('blank','real','ai'), template, ink, accent, muted, f'{index+1:02d}')
+        content(scene, title, items, natural_layout(slide, items),
+                image_mode in ('blank', 'real', 'ai'), template, ink, accent, muted, f'{index+1:02d}')
     return scene

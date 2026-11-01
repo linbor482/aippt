@@ -35,8 +35,40 @@ def _rect(scene, x, y, w, h, color, kind='rect'):
     scene['elements'].append(dict(kind=kind, x=x, y=y, w=w, h=h, color=color))
 
 
+def _assign_layouts(expanded, natural_layout, threshold=0.70):
+    """为每个 scene 分配最终布局；内容页做「版面重复率」约束（单一布局占比 ≤ threshold）。"""
+    from collections import Counter
+    layouts = [None] * len(expanded)
+    content = []
+    for i, (_, slide, items, _) in enumerate(expanded):
+        if slide.get('type') in ('cover', 'final'):
+            continue
+        layouts[i] = natural_layout(slide, items)
+        content.append(i)
+    if len(content) < 3:
+        return layouts
+    counts = Counter(layouts[i] for i in content)
+    dominant, dom_count = counts.most_common(1)[0]
+    if dom_count / len(content) <= threshold:
+        return layouts
+    allowed = int(len(content) * threshold)
+    alternates = [l for l in ('columns', 'timeline', 'editorial') if l != dominant]
+    alt = 0
+    for i in content:
+        if counts[dominant] <= allowed:
+            break
+        if layouts[i] != dominant:
+            continue
+        if any(_units(item) > 72 for item in expanded[i][2]):
+            continue  # 长要点页保持 editorial，避免挤坏
+        layouts[i] = alternates[alt % len(alternates)]
+        alt += 1
+        counts[dominant] -= 1
+    return layouts
+
+
 def build_scenes(data, template='luxury', image_mode='none'):
-    from style_layouts import design_scene, STYLES
+    from style_layouts import design_scene, natural_layout, STYLES
     template = template if template in STYLES else 'luxury'
     expanded = []
     for source_index, slide in enumerate(data.get('slides', [])):
@@ -59,9 +91,12 @@ def build_scenes(data, template='luxury', image_mode='none'):
             chunks = [items]
         for part, chunk in enumerate(chunks):
             expanded.append((source_index, slide, chunk, part))
+
+    layouts = _assign_layouts(expanded, natural_layout)
     scenes = []
-    for index, (source_index, slide, items, part) in enumerate(expanded):
-        scenes.append(design_scene(data, slide, items, part, source_index, index, len(expanded), template, image_mode))
+    for index, ((source_index, slide, items, part), layout) in enumerate(zip(expanded, layouts)):
+        draw_slide = slide if layout is None else dict(slide, layout=layout)
+        scenes.append(design_scene(data, draw_slide, items, part, source_index, index, len(expanded), template, image_mode))
     return scenes
 
 

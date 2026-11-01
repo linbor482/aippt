@@ -20,6 +20,15 @@ def text_sim(a, b):
     return max(word, bigram)
 
 
+def token_jaccard(a, b):
+    """集合 Jaccard（按空白切词），用于结构化签名比较，避免二元组兜底虚高。"""
+    sa = set(a.split())
+    sb = set(b.split())
+    if not sa or not sb:
+        return 0.0
+    return len(sa & sb) / len(sa | sb)
+
+
 def outline_text(outline):
     """把大纲压成一段文本（主标题+副标题+每页标题+要点），用于相似度比较。"""
     parts = [outline.get('title') or '', outline.get('subtitle') or '']
