@@ -55,12 +55,12 @@ JSON格式示例：
 请只返回JSON，不要包含其他说明文字。"""
 
 
-def generate_content_with_ai(topic, pages, language='中文'):
+def generate_content_with_ai(topic, pages, language='中文', extra=''):
     """使用DeepSeek API生成PPT内容大纲"""
     key = runtime_config.get('DEEPSEEK_API_KEY')
     if not key:
         return None
-    prompt = outline_prompt(topic, pages, language)
+    prompt = outline_prompt(topic, pages, language) + extra
     try:
         headers = {
             'Authorization': f'Bearer {key}',

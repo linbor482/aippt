@@ -2,6 +2,7 @@ import base64
 import io
 import json
 import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -17,6 +18,12 @@ class StreamTests(unittest.TestCase):
         self._pw = patch.dict(os.environ, {'ACCESS_PASSWORD': ''})
         self._pw.start()
         self.addCleanup(self._pw.stop)
+        # 历史记录隔离到临时文件，避免写入真实 history.json。
+        self._tmp = tempfile.TemporaryDirectory()
+        self._hist = patch('history.HISTORY_PATH', os.path.join(self._tmp.name, 'history.json'))
+        self._hist.start()
+        self.addCleanup(self._hist.stop)
+        self.addCleanup(self._tmp.cleanup)
         self.client = app.test_client()
         self.outline = generate_default_content('流式测试', 4)
 
@@ -158,6 +165,26 @@ class StreamTests(unittest.TestCase):
         padded = enforce_page_count(json.loads(json.dumps(base)), 5)
         self.assertEqual(len(padded['slides']), 5)
         self.assertEqual(padded['slides'][-1]['type'], 'final')
+
+    def test_outline_dedup_retries_then_warns(self):
+        import history
+        from generation_service import DEDUP_THRESHOLD, generate_outline_with_dedup
+        sample = {'title': '市场分析', 'subtitle': '', 'slides': [
+            {'type': 'cover', 'title': '市场分析', 'content': ''},
+            {'type': 'content', 'title': '行业现状', 'content': ['市场规模', '增长趋势', '竞争格局']},
+            {'type': 'final', 'title': '感谢观看', 'content': ''},
+        ]}
+        history.append(sample)
+        calls = {'n': 0}
+
+        def generate_once(extra=''):
+            calls['n'] += 1
+            return json.loads(json.dumps(sample))
+
+        outline, similarity, retries = generate_outline_with_dedup('市场分析', 3, '中文', generate_once)
+        self.assertGreater(similarity, DEDUP_THRESHOLD)
+        self.assertEqual(retries, 2)
+        self.assertEqual(calls['n'], 3)
 
     def test_budget_failure_releases_request_context(self):
         from generation_runtime import deadline

@@ -5,10 +5,13 @@ import time
 
 import requests
 import runtime_config
+import history
 
 
 SUPPORTED_TEMPLATES = {'default', 'modern', 'creative', 'luxury'}
 SUPPORTED_IMAGE_MODES = {'none', 'blank', 'ai', 'real'}
+DEDUP_THRESHOLD = 0.65
+DEDUP_RETRIES = 2
 
 
 def validate_outline(outline):
@@ -67,10 +70,15 @@ def build_outline(backend, topic, pages, language='中文', use_ai=False, outlin
     if use_ai:
         if not runtime_config.get('DEEPSEEK_API_KEY'):
             raise ValueError('尚未配置 AI 服务密钥，请配置后重试或关闭 AI。')
-        generated = backend.generate_content_with_ai(topic, pages, language)
-        if not generated:
-            raise ValueError('AI 大纲生成失败，请稍后重试。')
-        return enforce_page_count(validate_outline(generated), pages)
+
+        def generate_once(extra=''):
+            generated = backend.generate_content_with_ai(topic, pages, language, extra)
+            if not generated:
+                raise ValueError('AI 大纲生成失败，请稍后重试。')
+            return validate_outline(generated)
+
+        outline, _, _ = generate_outline_with_dedup(topic, pages, language, generate_once)
+        return outline
     return validate_outline(backend.generate_default_content(topic, pages, language))
 
 
@@ -134,27 +142,23 @@ def complete_slides(text):
     return slides
 
 
-def outline_events(backend, data):
-    topic = data['topic'].strip()
-    pages = int(data.get('pages', 8))
-    language = data.get('language', '中文')
-    yield {'type': 'stage', 'message': '已接收创作需求，正在规划页面结构'}
-    if not data.get('useAi', False):
-        outline = build_outline(backend, topic, pages, language)
-        yield {'type': 'stage', 'message': '未启用 AI：生成可编辑占位大纲，尚未应用内容约束'}
-        for index, slide in enumerate(outline['slides']):
-            yield {'type': 'outline_slide', 'index': index, 'slide': slide}
-        yield {'type': 'complete', 'success': True, 'outline': outline, 'mode': 'template'}
-        return
+def _dedup_instruction(entries, limit=6):
+    examples = [e.get('text') or e.get('title', '') for e in entries if (e.get('text') or e.get('title', ''))]
+    if not examples:
+        return ''
+    lines = '\n'.join(f'- {t[:120]}' for t in examples[:limit])
+    return ('\n\n【去重要求】以下是近期已生成的大纲内容，本次生成必须避免与其重复或高度相似，'
+            '请更换表述、结构与切入角度，保证重复率低于 65%。\n' + lines)
+
+
+def _stream_ai_outline(backend, topic, pages, language, extra=''):
+    """流式请求一次 AI 大纲，返回完整大纲 dict；失败抛 ValueError。"""
     ppt_key = runtime_config.get('DEEPSEEK_API_KEY')
-    if not ppt_key:
-        raise ValueError('尚未配置 AI 服务密钥，请在服务端配置后重试，或关闭 AI 使用占位大纲。')
-    yield {'type': 'stage', 'message': 'AI 正在撰写大纲，完成的页面将依次显示'}
     payload = {'model': 'deepseek-chat', 'stream': True,
-               'messages': [{'role': 'user', 'content': backend.outline_prompt(topic, pages, language)}],
+               'messages': [{'role': 'user', 'content': backend.outline_prompt(topic, pages, language) + extra}],
                'temperature': 0.7, 'max_tokens': 8000}
     started = time.monotonic()
-    text, emitted, finished = '', 0, False
+    text, finished = '', False
     with requests.post(backend.DEEPSEEK_API_URL,
                        headers={'Authorization': f'Bearer {ppt_key}'},
                        json=payload, stream=True, timeout=(10, 45)) as upstream:
@@ -177,14 +181,58 @@ def outline_events(backend, data):
                 text += choice.get('delta', {}).get('content') or ''
             if len(text) > 250000:
                 raise ValueError('大纲内容过长，请精简需求。')
-            slides = complete_slides(text)
-            for index in range(emitted, len(slides)):
-                yield {'type': 'outline_slide', 'index': index, 'slide': slides[index]}
-            emitted = len(slides)
         if not finished:
             raise ValueError('AI 输出未完成，请减少页数或内容后重试。')
-    outline = validate_outline(json.loads(backend._extract_json_block(text)))
+    return validate_outline(json.loads(backend._extract_json_block(text)))
+
+
+def generate_outline_with_dedup(topic, pages, language, generate_once):
+    """生成大纲并查重：超阈值自动换写法重试；返回 (outline, similarity, retries)。
+
+    generate_once(extra) 负责单次生成并返回已校验的大纲（不含页数收敛）。
+    """
+    instruction = _dedup_instruction(history.load())
+    outline = generate_once(instruction)
     if len(outline['slides']) > 30:
         raise ValueError('AI 返回超过 30 页，请调整需求后重试。')
     outline = enforce_page_count(outline, pages)
-    yield {'type': 'complete', 'success': True, 'outline': outline, 'mode': 'ai'}
+    similarity = history.max_similarity(outline)
+    retries = 0
+    while similarity > DEDUP_THRESHOLD and retries < DEDUP_RETRIES:
+        retries += 1
+        outline = generate_once(instruction)
+        if len(outline['slides']) > 30:
+            raise ValueError('AI 返回超过 30 页，请调整需求后重试。')
+        outline = enforce_page_count(outline, pages)
+        similarity = history.max_similarity(outline)
+    history.append(outline)
+    return outline, similarity, retries
+
+
+def outline_events(backend, data):
+    topic = data['topic'].strip()
+    pages = int(data.get('pages', 8))
+    language = data.get('language', '中文')
+    yield {'type': 'stage', 'message': '已接收创作需求，正在规划页面结构'}
+    if not data.get('useAi', False):
+        outline = build_outline(backend, topic, pages, language)
+        yield {'type': 'stage', 'message': '未启用 AI：生成可编辑占位大纲，尚未应用内容约束'}
+        for index, slide in enumerate(outline['slides']):
+            yield {'type': 'outline_slide', 'index': index, 'slide': slide}
+        yield {'type': 'complete', 'success': True, 'outline': outline, 'mode': 'template'}
+        return
+    ppt_key = runtime_config.get('DEEPSEEK_API_KEY')
+    if not ppt_key:
+        raise ValueError('尚未配置 AI 服务密钥，请在服务端配置后重试，或关闭 AI 使用占位大纲。')
+    yield {'type': 'stage', 'message': 'AI 正在撰写大纲，完成后将一次性显示全部页面'}
+
+    def generate_once(extra=''):
+        return _stream_ai_outline(backend, topic, pages, language, extra)
+
+    outline, similarity, retries = generate_outline_with_dedup(topic, pages, language, generate_once)
+    for index, slide in enumerate(outline['slides']):
+        yield {'type': 'outline_slide', 'index': index, 'slide': slide}
+    yield {'type': 'complete', 'success': True, 'outline': outline, 'mode': 'ai',
+           'dedup': {'similarity': round(similarity, 3),
+                     'warn': similarity > DEDUP_THRESHOLD,
+                     'rewritten': retries}}

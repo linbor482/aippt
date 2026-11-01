@@ -442,6 +442,7 @@
                     renderOutlineEditor();
                     showView('outlineView');
                     if (data.mode === 'template') toast('已生成占位大纲；内容约束需启用 AI 才能应用');
+                    if (data.dedup && data.dedup.warn) toast(`大纲与前次生成高度相似（${Math.round(data.dedup.similarity * 100)}%），已尽力去重`);
                 } else {
                     $('mErrorText').textContent = data.error || '大纲生成失败';
                     showView('errorView');
