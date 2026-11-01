@@ -25,6 +25,8 @@
         let useVision = false;
         let lastOutline = null;
         let importedOutline = null;
+        // 缓存大纲来源：null=无；'imported'=来自 JSON 导入；否则为生成时的设置签名
+        let lastOutlineKey = null;
         let editableOutline = null;
         let pendingOutline = null;
         let currentFilename = '';
@@ -97,7 +99,7 @@
         function stopGeneration() { generationController?.abort(); }
         $('cancelGeneration').addEventListener('click', stopGeneration);
         $('cancelOutline').addEventListener('click', stopGeneration);
-        $('topic').addEventListener('input', () => { importedOutline = null; pendingOutline = null; });
+        $('topic').addEventListener('input', () => { importedOutline = null; pendingOutline = null; lastOutlineKey = null; });
 
         // ---------- 工具 ----------
         let toastTimer = null;
@@ -124,6 +126,7 @@
                 useAi: $('useAi').checked
             };
         }
+        function outlineSignature(cfg) { return JSON.stringify([cfg.topic, cfg.pages, cfg.language, cfg.useAi]); }
 
         // ---------- 样例预览 ----------
 
@@ -302,12 +305,14 @@
         });
         function handleImported(obj) {
             if (obj && Array.isArray(obj.slides)) {
-                importedOutline = obj;
-                workspaceOutline = obj; currentPage = 0; renderSample();
                 if (obj.title) $('topic').value = obj.title;
+                importedOutline = obj;
+                lastOutlineKey = 'imported';
+                workspaceOutline = obj; currentPage = 0; renderSample();
                 toast('已导入大纲，生成时将使用导入内容');
             } else if (obj && typeof obj.topic === 'string') {
                 importedOutline = null;
+                lastOutlineKey = null;
                 $('topic').value = obj.topic || '';
                 if (obj.pages) setPages(obj.pages);
                 if (THEMES[obj.template]) { $('template').value = obj.template; currentTemplate = obj.template; renderSample(); }
@@ -401,7 +406,8 @@
         $('doGenerate').addEventListener('click', async () => {
             if (generationKind) return;
             const cfg = currentConfig();
-            if (importedOutline) {
+            const sig = outlineSignature(cfg);
+            if (importedOutline && (lastOutlineKey === sig || lastOutlineKey === 'imported')) {
                 editableOutline = JSON.parse(JSON.stringify(importedOutline));
                 renderOutlineEditor(); showView('outlineView'); return;
             }
@@ -432,6 +438,7 @@
                     [...$('outlineProgressSteps').children].forEach(el => el.classList.add('active'));
                     editableOutline = data.outline;
                     importedOutline = data.outline;
+                    lastOutlineKey = sig;
                     renderOutlineEditor();
                     showView('outlineView');
                     if (data.mode === 'template') toast('已生成占位大纲；内容约束需启用 AI 才能应用');
@@ -566,7 +573,7 @@
         $('previewModal').addEventListener('click', (e) => { if (e.target === $('previewModal')) closePreviewModal(); });
 
         // ---------- 示例 / 待定 ----------
-        $('sampleTool').addEventListener('click', () => { workspaceOutline = SAMPLE_OUTLINE; importedOutline = null; currentPage = 0; renderSample(); toast('已还原示例预览'); });
+        $('sampleTool').addEventListener('click', () => { workspaceOutline = SAMPLE_OUTLINE; importedOutline = null; lastOutlineKey = null; currentPage = 0; renderSample(); toast('已还原示例预览'); });
 
         // ---------- 弹窗细化：字数统计 / 模板说明 / 帮助提示 ----------
         function updateTopicCount() {

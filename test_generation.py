@@ -8,7 +8,7 @@ from unittest.mock import patch
 from pptx import Presentation
 from app import app, generate_default_content, outline_prompt
 from generation_api import complete_slides
-from generation_service import build_outline, validate_generation_options, validate_outline_request
+from generation_service import build_outline, enforce_page_count, validate_generation_options, validate_outline_request
 
 
 class StreamTests(unittest.TestCase):
@@ -52,7 +52,7 @@ class StreamTests(unittest.TestCase):
                 yield 'data: ' + json.dumps({'choices': [{'delta': {}, 'finish_reason': 'stop'}]})
                 yield 'data: [DONE]'
         with patch('runtime_config.get_config', return_value={'DEEPSEEK_API_KEY': 'test', 'VISION_API_KEY': ''}), patch('generation_service.requests.post', return_value=Upstream()) as post:
-            response = self.client.post('/api/outline/stream', json={'topic': '只介绍医疗，不编造数据', 'useAi': True}, buffered=False)
+            response = self.client.post('/api/outline/stream', json={'topic': '只介绍医疗，不编造数据', 'pages': 4, 'useAi': True}, buffered=False)
             stream = iter(response.response)
             self.assertIn('stage', next(stream).decode())
             post.assert_not_called()  # Initial event reaches client before contacting upstream.
@@ -144,6 +144,20 @@ class StreamTests(unittest.TestCase):
             result = self.events('/api/outline/stream', {'topic':'测试','useAi':True})
         self.assertEqual(result[-1]['type'], 'error')
         self.assertIn('未完成', result[-1]['error'])
+
+    def test_enforce_page_count_trims_and_pads(self):
+        base = {'title': 'T', 'subtitle': '', 'slides': [
+            {'type': 'cover', 'title': '封面', 'content': ''},
+            {'type': 'content', 'title': '甲', 'content': ['1', '2', '3', '4']},
+            {'type': 'final', 'title': '结束', 'content': ''},
+        ]}
+        trimmed = enforce_page_count(json.loads(json.dumps(base)), 2)
+        self.assertEqual(len(trimmed['slides']), 2)
+        self.assertEqual(trimmed['slides'][0]['type'], 'cover')
+        self.assertEqual(trimmed['slides'][-1]['type'], 'final')
+        padded = enforce_page_count(json.loads(json.dumps(base)), 5)
+        self.assertEqual(len(padded['slides']), 5)
+        self.assertEqual(padded['slides'][-1]['type'], 'final')
 
     def test_budget_failure_releases_request_context(self):
         from generation_runtime import deadline

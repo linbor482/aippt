@@ -70,8 +70,36 @@ def build_outline(backend, topic, pages, language='中文', use_ai=False, outlin
         generated = backend.generate_content_with_ai(topic, pages, language)
         if not generated:
             raise ValueError('AI 大纲生成失败，请稍后重试。')
-        return validate_outline(generated)
+        return enforce_page_count(validate_outline(generated), pages)
     return validate_outline(backend.generate_default_content(topic, pages, language))
+
+
+def enforce_page_count(outline, pages):
+    """把大纲页数收敛到恰好 pages 页：偏多裁中间内容页，偏少拆分最长内容页补齐。
+
+    拆分只作用于 content 页（要点数组），插入在原页之后、结束页之前；
+    没有可拆的内容页时按当前页数返回，不编造内容。
+    """
+    slides = outline['slides']
+    if len(slides) > pages:
+        head = slides[:1]
+        tail = slides[-1:] if pages > 1 else []
+        keep_middle = max(0, pages - len(head) - len(tail))
+        outline['slides'] = head + slides[1:-1][:keep_middle] + tail
+        return outline
+    while len(slides) < pages:
+        split = next((s for s in slides
+                      if s.get('type') == 'content'
+                      and isinstance(s.get('content'), list) and len(s['content']) >= 2), None)
+        if split is None:
+            break
+        half = len(split['content']) // 2
+        cont = dict(split)
+        cont['content'] = split['content'][half:]
+        cont['title'] = f"{split.get('title') or ''}（续）"
+        split['content'] = split['content'][:half]
+        slides.insert(slides.index(split) + 1, cont)
+    return outline
 
 
 def validate_generation_options(data, default_template='default', default_image_mode='none'):
@@ -158,10 +186,5 @@ def outline_events(backend, data):
     outline = validate_outline(json.loads(backend._extract_json_block(text)))
     if len(outline['slides']) > 30:
         raise ValueError('AI 返回超过 30 页，请调整需求后重试。')
-    # 收紧到用户设定页数：多出来的裁掉中间内容页，保留封面与结束页
-    if len(outline['slides']) > pages:
-        head = outline['slides'][:1]
-        tail = outline['slides'][-1:] if pages > 1 else []
-        keep_middle = max(0, pages - len(head) - len(tail))
-        outline['slides'] = head + outline['slides'][1:-1][:keep_middle] + tail
+    outline = enforce_page_count(outline, pages)
     yield {'type': 'complete', 'success': True, 'outline': outline, 'mode': 'ai'}
